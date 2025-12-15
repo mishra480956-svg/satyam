@@ -124,6 +124,7 @@ model UserPreference {
   userId       String   @unique
   defaultModel String   @default("gpt-4o-mini")
   temperature  Float    @default(0.7)
+  uiDensity    String   @default("comfortable")
 
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 

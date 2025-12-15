@@ -147,6 +147,7 @@ export async function getUserPreferences(userId: string) {
     select: {
       defaultModel: true,
       temperature: true,
+      uiDensity: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -155,7 +156,12 @@ export async function getUserPreferences(userId: string) {
 
 export async function updateUserPreferences(
   userId: string,
-  input: Partial<Pick<Prisma.UserPreferenceUncheckedCreateInput, "defaultModel" | "temperature">>,
+  input: Partial<
+    Pick<
+      Prisma.UserPreferenceUncheckedCreateInput,
+      "defaultModel" | "temperature" | "uiDensity"
+    >
+  >,
 ) {
   return prisma.userPreference.upsert({
     where: { userId },
@@ -163,17 +169,43 @@ export async function updateUserPreferences(
       userId,
       defaultModel: input.defaultModel ?? undefined,
       temperature: input.temperature ?? undefined,
+      uiDensity: input.uiDensity ?? undefined,
     },
     update: {
       deletedAt: null,
       defaultModel: input.defaultModel ?? undefined,
       temperature: input.temperature ?? undefined,
+      uiDensity: input.uiDensity ?? undefined,
     },
     select: {
       defaultModel: true,
       temperature: true,
+      uiDensity: true,
       createdAt: true,
       updatedAt: true,
+    },
+  });
+}
+
+export async function getConversationSnapshotForShare(conversationId: string) {
+  return prisma.conversation.findFirst({
+    where: { id: conversationId, deletedAt: null },
+    select: {
+      id: true,
+      title: true,
+      createdAt: true,
+      updatedAt: true,
+      messages: {
+        where: { deletedAt: null },
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          role: true,
+          content: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      },
     },
   });
 }

@@ -24,47 +24,60 @@ export interface AgentErrorResponse {
   supportedModels?: string[];
 }
 
-export interface AgentSuccessResponse {
-  conversationId: string;
-  messageId: string;
+
+type SSEMeta = {
+  conversationId?: string;
   model: string;
-  provider: string;
-  suggestions: Array<{
-    title: string;
-    prompt: string;
-    description?: string;
-  }>;
-}
+};
 
 // Utility function to create SSE stream
-function createSSEStream(readableStream: ReadableStream<Uint8Array>) {
+function createSSEStream(
+  readableStream: ReadableStream<Uint8Array>,
+  options: {
+    meta: SSEMeta;
+    getSuggestions: (fullText: string) => Promise<unknown>;
+  },
+) {
   return new ReadableStream<Uint8Array>({
     start(controller) {
       const reader = readableStream.getReader();
-      
+      const encoder = new TextEncoder();
+      const decoder = new TextDecoder();
+
+      let fullText = "";
+
+      const send = (event: string, data: unknown) => {
+        controller.enqueue(
+          encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`),
+        );
+      };
+
       const pump = async () => {
         try {
+          send("meta", options.meta);
+
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-            
-            // Convert to SSE format
-            const chunk = `data: ${new TextDecoder().decode(value)}\n\n`;
-            const encoder = new TextEncoder();
-            controller.enqueue(encoder.encode(chunk));
+
+            const delta = decoder.decode(value, { stream: true });
+            if (!delta) continue;
+
+            fullText += delta;
+            send("token", { delta });
           }
-          
-          // Send completion signal
-          const endChunk = `event: done\ndata: [DONE]\n\n`;
-          const encoder = new TextEncoder();
-          controller.enqueue(encoder.encode(endChunk));
+
+          send("done", { done: true });
+
+          const suggestions = await options.getSuggestions(fullText);
+          send("suggestions", suggestions);
           controller.close();
         } catch (error) {
           console.error("SSE stream error:", error);
           controller.error(error);
         }
       };
-      
+
       pump();
     },
   });
@@ -212,7 +225,22 @@ export async function POST(request: NextRequest) {
     });
 
     // Create SSE stream from the response
-    const sseStream = createSSEStream(result.stream);
+    const sseStream = createSSEStream(result.stream, {
+      meta: {
+        conversationId,
+        model: targetModel,
+      },
+      getSuggestions: async (fullText) => {
+        try {
+          return await agentOrchestrator.getQuickActionSuggestions(
+            fullText,
+            targetModel,
+          );
+        } catch {
+          return [];
+        }
+      },
+    });
 
     // Return streaming response with proper headers
     return new NextResponse(sseStream, {
@@ -268,7 +296,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function OPTIONS(_request: NextRequest) {
+export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
     headers: {

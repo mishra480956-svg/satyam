@@ -7,7 +7,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   const session = await auth();
   const userId = session?.user?.id;
 

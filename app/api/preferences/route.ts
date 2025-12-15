@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   const session = await auth();
   const userId = session?.user?.id;
 
@@ -27,11 +27,13 @@ export async function PATCH(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as {
     defaultModel?: string;
     temperature?: number;
+    uiDensity?: "comfortable" | "compact";
   };
 
   const preferences = await updateUserPreferences(userId, {
     defaultModel: body.defaultModel,
     temperature: body.temperature,
+    uiDensity: body.uiDensity,
   });
 
   return NextResponse.json({ preferences });

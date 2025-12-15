@@ -451,6 +451,10 @@ export class AgentOrchestrator {
     }
   }
 
+  async getQuickActionSuggestions(response: string, model: string) {
+    return this.generateQuickActions(response, model);
+  }
+
   private async generateQuickActions(response: string, model: string): Promise<QuickActionSuggestion[]> {
     try {
       const provider = providerManager.getProviderForModel(model);
