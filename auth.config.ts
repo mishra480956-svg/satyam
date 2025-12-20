@@ -1,8 +1,26 @@
 import type { NextAuthConfig } from "next-auth";
 import Email from "next-auth/providers/email";
 import GitHub from "next-auth/providers/github";
+import Credentials from "next-auth/providers/credentials";
 
 const providers: NonNullable<NextAuthConfig["providers"]> = [
+  Credentials({
+    name: "Demo User",
+    credentials: {
+      password: { label: "Password (type 'demo')", type: "password" },
+    },
+    async authorize(credentials) {
+      if (credentials?.password === "demo") {
+        return {
+          id: "demo-user",
+          name: "Demo User",
+          email: "demo@satynx.ai",
+          image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
+        };
+      }
+      return null;
+    },
+  }),
   Email({
     server: process.env.EMAIL_SERVER ?? "smtp://user:pass@localhost:1025",
     from: process.env.EMAIL_FROM ?? "no-reply@example.com",
